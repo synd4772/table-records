@@ -1,0 +1,22 @@
+.documents-table {
+    border: 1px solid black;
+    border-collapse: collapse;
+    width: 100%;
+}
+
+.documents-td {
+    border: 1px solid black;
+}
+.documents-th{
+    
+    border: 1px solid black;
+}
+
+.table-container {
+    height:100vh;
+}
+.documents-table thead{
+    position: sticky;
+    top:0;
+    background-color:white;
+}

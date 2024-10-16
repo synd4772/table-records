@@ -1,0 +1,17 @@
+{
+    "Documents":{
+        "SUBMITTED":"ESITATUD",
+        "IN_PROCESS":"PROTSESSIS",
+        "ADDITIONAL_REVIEW":"LISAKS ÜLEVAADE",
+        "REVIEW_COMPLETED": "ÜLEVAADE LÕPPENUD",
+        "INVALID":"KEHTETU",
+        "index": "Indeks",
+        "documentNumber": "Dokumendi Number",
+        "id": "ID",
+        "state": "Seisund",
+        "documentName": "Dokumendi Nimi",
+        "stateTime": "Seisundi Aeg",
+        "documentDate": "Dokumendi Kuupäev",
+        "documentTotalAmount": "Dokumendi Kogusumma"
+    }
+}
