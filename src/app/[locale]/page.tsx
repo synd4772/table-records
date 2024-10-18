@@ -1,8 +1,8 @@
 
 import {Link} from '@/i18n/routing';
 
-//@ts-ignore
-export default function Home({ params: { lang } }) {
+
+export default function Home() {
    return(
     <div>
         
