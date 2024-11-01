@@ -1,244 +1,91 @@
-'use client'
-import { useTranslations } from 'next-intl';
+'use client';
 
-import "./documents.css"
-import { DateTime } from 'luxon';
-import { useMemo, useState, useRef, useEffect, useCallback } from "react"
-import { useDocumentData, DocumentGeneric } from "./useDocumentData";
-import { urlToHttpOptions } from 'url';
+import "./documents.css";
 
+import { Link } from "@/i18n/routing";
+import { useTranslations } from "next-intl";
+import { useData } from "./useData";
+import { PageProps } from "../types";
+import { HeaderName } from "./documents.types";
+import { TableHeader } from "./TableHeader";
+import { TableBody } from "./TableBody";
+import { Dispatch, MutableRefObject, SetStateAction, use, useEffect, useRef, useState } from "react";
+import { useIntersectionObservers } from "./useIntersectionObservers";
+import { documentEventEmitter } from "./documentEventEmitter";
+import { isHeritageClause } from "typescript";
 
-export const DocumentState = {
-    submitted: 'SUBMITTED',
-    inProgress: 'IN_PROCESS',
-    additionalReview: 'ADDITIONAL_REVIEW',
-    reviewCompleted: 'REVIEW_COMPLETED',
-    invalid: 'INVALID',
-} as const;
+const headers = [
+  HeaderName.index,
+  HeaderName.id,
+  HeaderName.state,
+  HeaderName.stateTime,
+  HeaderName.documentName,
+  HeaderName.documentNumber,
+  HeaderName.documentDate,
+  HeaderName.documentTotalAmount,
+] as HeaderName[];
 
-export type DocumentState = typeof DocumentState[keyof typeof DocumentState];
-
-interface DocumentObject {
-    index: number;
-    id: number;
-    state: DocumentState;
-    stateTime: string;
-    stateTimeMillis: number;
-    documentNumber: string;
-    documentName: string;
-    documentDate: string;
-    documentDateMillis: number;
-    documentTotalAmount: number;
+interface TableStatProps{
+    params: {
+        locale: string
+      },
+      setHeaderRendered: Dispatch<SetStateAction<boolean>>
 }
-// luxon
-export default function Home() {
 
-    const recordsPerPage = 200
-
-    const t = useTranslations("Documents")
-    const [allDocuments] = useDocumentData()
-
-    const [sortKey, setSortKey] = useState<keyof DocumentGeneric<DateTime>>("id")
-
-    const [isAscending, setIsAscending] = useState(false)
-
-    const observerRef = useRef<IntersectionObserver | null>(null)
-    const topObserverRef = useRef<IntersectionObserver | null>(null);
-
-    const loaderRef = useRef<HTMLTableRowElement | null>(null)
-    const topLoaderRef = useRef<HTMLTableRowElement | null>(null);
-
-    const [switchFlag, setSwitchFlag] = useState(true)
-
-
-    const [bottomRecords, setBottomRecords] = useState<number>(recordsPerPage);
-    const [topRecords, setTopRecords] = useState<number>(0);
-
-    const bottomRecordsRef = useRef<number>(bottomRecords)
-    const topRecordsRef = useRef<number>(topRecords)
-
-    const documents = useMemo(() => {
-        return allDocuments.sort((a, b) => {
-            if (typeof a[sortKey] === "string" && typeof b[sortKey] === "string") {
-                if (["stateTime", "documentDate"].includes(sortKey)) {
-                    const date1 = isAscending ? a : b
-                    const date2 = isAscending ? b : a
-
-                    return date1 == date2
-                        ? 0
-                        : date1 < date2
-                            ? -1
-                            : 1
-                }
-
-                const nameA = isAscending ? a[sortKey].toUpperCase() : b[sortKey].toUpperCase();
-                const nameB = isAscending ? b[sortKey].toUpperCase() : a[sortKey].toUpperCase();
-                return nameA < nameB ? -1 : nameA > nameB ? 1 : 0;
-            }
-
-            return isAscending ? b[sortKey] as number - (a[sortKey] as number) : (a[sortKey] as number) - (b[sortKey] as number)
-
-        }
-        )
-    }, [allDocuments, isAscending, sortKey])
-    const sort = useCallback((header: Partial<keyof DocumentObject>) => {
-        console.warn("useCallBack")
-        console.log(header)
-        if (sortKey === header) {
-            setIsAscending((prev) => !prev)
-        }
-        else {
-            setSortKey(header)
-            setIsAscending((prev) => !prev)
-        }
-    }, [sortKey])
-
-    const [visibleRecords, setVisibleRecords] = useState<DocumentGeneric<string>[]>(documents.slice(topRecords, bottomRecords))
-    console.log(visibleRecords.length, "size")
-    useEffect(() => {
-        setVisibleRecords(documents.slice(topRecords, bottomRecords))
-
-        console.log("topRecords", topRecords, "bottomRecords", bottomRecords)
-        bottomRecordsRef.current = bottomRecords
-        topRecordsRef.current = topRecords
-        console.log("topRecordsRef", topRecordsRef.current, "bottomRecordsRef", bottomRecordsRef.current)
-        
-    }, [topRecords, bottomRecords, isAscending])
-
-    const headers: Partial<keyof DocumentObject>[] = [
-        "index",
-        "documentNumber",
-        "id",
-        "state",
-        "documentName",
-        "stateTime",
-        "documentDate",
-        "documentTotalAmount"
-    ]
-
-    useEffect(() => {
-        console.log(`${topLoaderRef.current} && ${topObserverRef.current} :`, topLoaderRef.current != null && topObserverRef.current != null)
-        if (topLoaderRef.current !== null) {
-            topObserverRef.current = new IntersectionObserver((entries) => {
-                console.log(`isIntersecting [top]`, entries[0].isIntersecting)
-                if (entries[0].isIntersecting && topRecordsRef.current > 0) {
-                    console.log(`true [top]`)
-                    setTopRecords((prev) => {
-                        console.log(`previous: ${prev}, next: ${Math.max(prev - recordsPerPage, 0)} (setTopRecords)`)
-
-                        return switchFlag ? Math.max(prev - recordsPerPage, 0) : Math.max(prev - recordsPerPage - 50, 0)
-                    });
-                    setBottomRecords((prev) => {
-                        console.log(`previous: ${prev}, next: ${Math.max(prev - recordsPerPage, 0)} (setBottomRecords)`)
-
-                        return switchFlag ? Math.max(prev - recordsPerPage - 50, 0) : Math.max(prev - recordsPerPage, 0)
-                    });
-                }
-            });
-            topObserverRef.current.observe(topLoaderRef.current);
-            console.log("top loaded", topLoaderRef.current)
-        }
-        return () => {
-            if (topLoaderRef.current) {
-                topObserverRef.current?.unobserve(topLoaderRef.current)
-            }
-        }
+function TableStatHeader({ params, setHeaderRendered }: TableStatProps){
+    const t = useTranslations('DocumentsPage');
+    const {coordinates: coordintates, documentsAmount} = useData();
+    useEffect(()=>{
+        console.log("jouuu")
+        setHeaderRendered(true)
     }, [])
+
+    return (
+        <div className="header-container">
+        <div className="page-header" >
+          <Link style={{ paddingRight: 10, textDecoration: params.locale === "en" ? "underline" : "none" }} href={'/documents'} locale="en" >EN</Link>
+          <Link style={{ paddingRight: 10, textDecoration: params.locale === "ru" ? "underline" : "none" }} href={'/documents'} locale="ru">RU</Link>
+        </div>
+        <div className="info-block">
+          <span className="info-block-item">{t("rendered", { amount: documentsAmount ? (documentsAmount > 0 ? coordintates.end - coordintates.start : 0) : "loading..."})}</span>
+          <span className="info-block-item">{t("allDocuments", { amount: documentsAmount ? documentsAmount : "loading..."})}</span>
+          <span className="info-block-item">{t("start", { start: coordintates.start })}</span>
+          <span className="info-block-item">{t("end", { end: coordintates.end })}</span>
+        </div>
+        
+      </div>
+    )
+}
+
+export default function Page({ params }: PageProps) {
+    const [isHeaderRendered, setHeaderRendered] = useState(false);
+    const pageRef = useRef<HTMLDivElement>(null);
+    const { topObserver, bottomObserver } = useIntersectionObservers(pageRef.current);
 
     useEffect(()=>{
-        if (loaderRef.current && observerRef.current){
-            observerRef.current.disconnect();
-            observerRef.current.observe(loaderRef.current)
-            console.log("bottom loaded", loaderRef.current)
-        }
-        if(topLoaderRef.current && topObserverRef.current){
-            topObserverRef.current.disconnect();
-            topObserverRef.current.observe(topLoaderRef.current)
-            console.log("top loaded", topLoaderRef.current)
+        console.log(isHeaderRendered, "isHeaderRendered")
+    },[isHeaderRendered])
 
-        }
-
-    },[loaderRef.current, observerRef.current, topRecordsRef.current, isAscending])
-
-    useEffect(() => {
-        if (loaderRef.current !== null) {
-            observerRef.current = new IntersectionObserver((entries) => {
-                if (entries[0].isIntersecting) {
-                    console.log(`true [bottom]`)
-                    setSwitchFlag((prev)=>!prev)
-                    setTopRecords((prev) => {
-                        console.log(bottomRecordsRef.current , 'lol')
-                        if (bottomRecordsRef.current === recordsPerPage){
-                            return prev
-                        }
-                        console.log(`previous: ${prev}, next: ${prev + recordsPerPage}  (setTopRecords)`)            
-                        return switchFlag ? prev + recordsPerPage : prev + recordsPerPage + 50
-                    });
-                    
-                    setBottomRecords((prev) => {
-                        console.log(`previous: ${prev}, next: ${prev + recordsPerPage} (setBottomRecords)`)
-                        return switchFlag ? prev + recordsPerPage + 50 : prev + recordsPerPage
-                    })
-
-                    console.log("done")
-                }
-            });
-        }
-        return () => {
-            console.log("unmounted (bottom)")
-        }
+    useEffect(()=>{
+        console.log("aru pooping?")
     }, [])
-
-    const headersComponent = useMemo(() => {
-        return headers.map((header) => (
-            <th className="documents-th" key={header} onClick={() => sort(header)}>
-                {`${t(header)} ${sortKey === header ? (isAscending ? '⭣' : '⭡') : ''}`}
-            </th>
-        ));
-    }, [headers, sortKey, isAscending]);
-
-    const tableRowRender = (document: DocumentGeneric<string>, index: number) => (
-        <tr key={document.id} ref={index == 50 ? topLoaderRef : (index == (bottomRecords - topRecords) - 20 ? loaderRef : null)} id={`${index + 1}`} style={{ backgroundColor: index == Math.round(recordsPerPage / 5) ? "red" : (index == (bottomRecords - topRecords) - 20 ? "green " : "white") }}>
-            {headers.map(
-                (header) => (
-                    <td className="documents-td prikol" key={header}>
-                        {header === 'index' ? topRecords + index + 1 : (header === 'state' ? t(document[header]) : document[header].toString())}
-                    </td>
-                )
-            )}
-        </tr>
-    )
-
-    const getHeight = useCallback((topRecords: number) => {
-        console.log(`getHeight ${topRecords}`)
-        return `${topRecords * 21}px`
-    }, [])
-
-    console.log("height:", getHeight(topRecords))
+  
     return (
-        <div className={'table-container'}>
-            <table className='documents-table'>
+        <div ref={pageRef} className="page">
+            <TableStatHeader params={params} setHeaderRendered={setHeaderRendered}/>
+            <div className="table-container">
+            { isHeaderRendered && (
+                <table className="table">
                 <thead>
-                    <tr>
-                        {headersComponent}
-                    </tr>
+                    <TableHeader headers={headers} />
                 </thead>
-                <tbody>
-                    {/* <tr style={{ height: getHeight(topRecords) }}></tr> */}
-                    {[...visibleRecords].slice(0).map((document, index) => {
-
-                        return tableRowRender(document, index)
-                    })}
-                </tbody>
-            </table>
+                <TableBody bottomObserver={bottomObserver} topObserver={topObserver} headers={headers} />
+                </table>
+            )
+            }
         </div>
-    );
+        </div>
+    )
 }
 
-// огранизовать сохранение данных в базу : sql / redux
-// создать новую страницу для создания новых документов , которая ьбудет доступна по url document/new
-// создать новую страницу для изменения имеющихся документов, которая ьбудет доступна по url document/:id
-// создать actions == создание - единичное , (удаление , изменение) - множ.
-// создать selection
-// создать страницы
-// фильтрация по полям
+

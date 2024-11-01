@@ -3,10 +3,11 @@ import {createSharedPathnamesNavigation} from 'next-intl/navigation';
  
 export const routing = defineRouting({
   // A list of all locales that are supported
-  locales: ['en', 'et', 'ru'],
+  locales: ['en', 'ru'],
  
   // Used when no locale matches
-  defaultLocale: 'en'
+  defaultLocale: 'en',
+  localePrefix: 'always'
 });
  
 // Lightweight wrappers around Next.js' navigation APIs
