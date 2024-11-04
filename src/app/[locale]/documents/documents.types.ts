@@ -44,3 +44,63 @@ export interface Document {
   eligiblePercentage: number;
 }
 
+
+export type CachedSortedDataValue = {
+    ascending: number[],
+    notAscending: number[]
+}
+
+
+
+export type CachedSortedDataKeys = keyof typeof DocumentFieldName;
+
+export type CachedSortedData = {
+    [K in CachedSortedDataKeys]: CachedSortedDataValue;
+}
+
+export const INIT_CACHED_SORTED_DATA_VALUE: CachedSortedDataValue = {
+    ascending: [],
+    notAscending: []
+} 
+export const INIT_CACHED_SORTED_DATA: CachedSortedData = {
+    id: {
+        ascending: [],
+        notAscending: []
+    },
+    state: {
+        ascending: [],
+        notAscending: []
+    },
+    stateTime: {
+        ascending: [],
+        notAscending: []
+    },
+    documentNumber: {
+        ascending: [],
+        notAscending: []
+    },
+    documentName: {
+        ascending: [],
+        notAscending: []
+    },
+    documentDate: {
+        ascending: [],
+        notAscending: []
+    },
+    documentTotalAmount: {
+        ascending: [],
+        notAscending: []
+    },
+    eligibleAmount: {
+        ascending: [],
+        notAscending: []
+    },
+    version: {
+        ascending: [],
+        notAscending: []
+    },
+    eligiblePercentage: {
+        ascending: [],
+        notAscending: []
+    }
+} as const

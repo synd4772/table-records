@@ -7,9 +7,23 @@
 }
 .header-container {
   padding: 1rem 0;
+  padding-bottom: 0;
   position: sticky;
   top: 0;
   background-color: white;
+}
+.sort-input-container{
+    position: sticky;
+    padding: 20px 0;
+    top: 102px;
+    background-color: white;
+}
+.sort-input{
+    text-align: left;
+    font-size: 17px;
+    padding-top: 10px;
+    padding-bottom: 10px;
+    padding-left: 10px;
 }
 .page-header {
   border-bottom: 1px solid gray;
@@ -37,10 +51,10 @@ table {
 }
 
 table thead {
-  position: sticky;
-  top: 100px;
-  background-color: white;
-  height: 70px;
+    position: sticky;
+    top: 186px;
+    background-color: white;
+    height: 70px;
 }
 table thead tr {
 

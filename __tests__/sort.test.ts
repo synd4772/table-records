@@ -1,5 +1,5 @@
 import { DocumentState, HeaderName } from "../src/app/[locale]/documents/documents.types"
-import { sortByKey } from "../src/app/utils/sortByKey";
+import { sortByKey } from "../src/app/utils/DataHandler";
 
 describe('sortByKey', ()=> {
   const data = [

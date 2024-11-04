@@ -31,8 +31,8 @@ export const TableBody = ({ headers, bottomObserver, topObserver }: TableBodyPro
       topObserver.current?.disconnect()
       //@ts-ignore
       const { documents: _documents, indexStart: _indexStart } = args;
-      console.log({ _documents, _indexStart })
       indexStart.current = _indexStart;
+      
       setDocuments(() => [..._documents as Document[]]);
     });
     return () => {

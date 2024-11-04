@@ -1,6 +1,6 @@
-import { Document, DocumentFieldName } from "@/app/[locale]/documents/documents.types"
+import { Document, DocumentFieldName, INIT_CACHED_SORTED_DATA } from "@/app/[locale]/documents/documents.types"
 import { useCallback, useEffect, useRef, useState, useMemo } from "react";
-import { sortByKey } from "@/app/utils/sortByKey";
+import { documentDataHandler } from "./documentsDataHandler";
 import { documentEventEmitter } from "./documentEventEmitter";
 import { Coordinates, shiftCoordinates } from "@/app/utils/shiftCoordinates";
 import { ChunkHandler } from "@/app/utils/ChunkHandler";
@@ -13,40 +13,50 @@ const INIT_COORDINATES: Coordinates = {
 };
 
 export const useData = () => {
-    const data = useRef<Document[] | null>(null)
-
-
     const [coordinates, setCoordinates] = useState<Coordinates>(INIT_COORDINATES);
     
     const [documents, setDocuments] = useState<Document[]>([]);
     const [sorter, setSorter] = useState<{ key: keyof Document, isAscending: boolean}>( { key: 'id', isAscending: true });
 
     const isRendering = useRef(false);
-    const isFirstDataFetched = useRef(false);
+    const isFetching = useRef(false);
     const isAllDataFetched = useRef(false)
 
     useEffect(()=>{
-        documentEventEmitter.on("documentsFetched", (jsonData)=>{
-            //@ts-ignore
-            data.current = jsonData
-            console.log("all fetched")
-            setDocuments((data.current as Document[]).slice(coordinates.start, coordinates.end));
-            documentEventEmitter.unsubscribe("documentsFetched")
+        documentEventEmitter.on("fetchIsCompleted", (jsonData)=>{
             isAllDataFetched.current = true
-        })
 
-        documentEventEmitter.on("documentsForFirst", (jsonData)=>{
-            //@ts-ignore
-            console.log(jsonData)
-            setDocuments((jsonData as Document[]).slice(coordinates.start, coordinates.end));
-            documentEventEmitter.unsubscribe("documentsForFirst")
+            if(!documentDataHandler.allData.length){
+                documentDataHandler.allData = jsonData as Document[]
+            }
+            documentDataHandler.pushData(jsonData as Document[])
+            setDocuments(documentDataHandler.allData.slice(coordinates.start, (coordinates.end <= documentDataHandler.allData.length ? coordinates.end : documentDataHandler.allData.length)));
+
+            documentDataHandler.createSortWorker()
+            documentEventEmitter.unsubscribe("fetchIsCompleted")
         })
+        documentEventEmitter.on("anotherDataFetched", (args)=>{
+            const jsonData = args as Document[];
+            documentDataHandler.pushData(jsonData)
+        })
+        documentEventEmitter.on("firstDataFetched", (jsonData)=>{
+            //@ts-ignore
+            documentDataHandler.pushData(jsonData as Document[])
+            setDocuments(documentDataHandler.allData.slice(coordinates.start, coordinates.end));
+            documentEventEmitter.unsubscribe("firstDataFetched")
+
+        })
+        return ()=>{
+            documentEventEmitter.unsubscribe("fetchIsCompleted")
+            documentEventEmitter.unsubscribe("anotherDataFetched")
+            documentEventEmitter.unsubscribe("firstDataFetched")
+        }
     }, [])
 
     useEffect(()=>{
-        if(!isFirstDataFetched.current){
+        if(!isFetching.current){
+            isFetching.current = true
             async function fetchData() {
-                console.log("fetching")
                 const response = await fetch("/api/documents", {cache:"no-cache"})
                 const reader = response.body?.getReader();
                 const decoder = new TextDecoder('utf-8');
@@ -57,48 +67,57 @@ export const useData = () => {
                         if(!reader) throw new Error("error")
                         const {done, value} = await reader?.read();
                         if (done) break;
+
                         const chunk = decoder.decode(value, { stream: true });
                         chunkHandler.processChunk(chunk)
+
                         if(chunkHandler.processedChunks.length >= 500 && !isFirstDataFetched){
+                            console.log(chunkHandler.processedChunks.length, "processed chunks")
+                            documentEventEmitter.emit("firstDataFetched", chunkHandler.processedChunks.slice(0, 500))
+                            chunkHandler.processedChunks = chunkHandler.processedChunks.slice(500)
                             isFirstDataFetched = true
-                            documentEventEmitter.emit("documentsForFirst", chunkHandler.processedChunks)
+                        }
+                        else if(chunkHandler.processedChunks.length >= 5000 && isFirstDataFetched){
+                            documentEventEmitter.emit("anotherDataFetched", chunkHandler.processedChunks.slice(0, 5000))
+                            chunkHandler.processedChunks = chunkHandler.processedChunks.slice(5000)
                         }
                     }
-                    documentEventEmitter.emit("documentsFetched", chunkHandler.processedChunks)
+                    documentEventEmitter.emit("fetchIsCompleted", chunkHandler.processedChunks)
+                    chunkHandler.processedChunks = chunkHandler.processedChunks.slice(chunkHandler.processedChunks.length)
                 }
                 catch(error){
                     console.log(error)
                 }
             }
             fetchData();
-            isFirstDataFetched.current = true;
         }
     }, [])
 
-    const sortDocuments = useCallback((key: DocumentFieldName, isAscending: boolean) => {
-        setDocuments((prev) => sortByKey<Document>(
-        {data: prev, 
-        key,
-        isAscending}
-        )
-    ) 
-    }, []);
+    const sortDocuments = useCallback((key: DocumentFieldName, isAscending: boolean, start?:number, end?:number) => {
+        if(documentDataHandler.isAllDataCached()){
+            setDocuments(() => documentDataHandler.getCachedData({key, isAscending}))
+        }
+        }, []);
 
     useEffect(() => {
-        if (documents) {
-            console.log(documents.length, "LENGTH")
-            console.log("DOCUMENTS UPDATED EMIT", INIT_COORDINATES)
-        documentEventEmitter.emit('documentsUpdated', {documents, indexStart: coordinates.start});
+        if (documents && isAllDataFetched) {
+            documentEventEmitter.emit('documentsUpdated', {documents, indexStart: coordinates.start});
         }
     }, [documents]);
 
     useEffect(() => {
-        const sorted = sortByKey<Document>({ 
-            data: (data.current as Document[]), 
-            ...sorter
-        }).slice(coordinates.start, coordinates.end);
-
-        setDocuments(() => sorted);
+        console.time(`Sorting by ${sorter.key}`)
+        const sorted = documentDataHandler.getCachedData({ 
+            ...sorter,
+            start: coordinates.start,
+            end: coordinates.end
+        })
+        
+        if(documentDataHandler.isAllDataCached()){
+            setDocuments(() => sorted);
+        }
+        console.timeEnd(`Sorting by ${sorter.key}`)
+        
     }, [sorter.isAscending, sorter.key])
 
     useEffect(() => {
@@ -111,7 +130,7 @@ export const useData = () => {
         documentEventEmitter.on('bottomRefTriggered', () => {
             console.log("bottom trigger")
             if (!isRendering.current && isAllDataFetched.current) {
-                setCoordinates((prev) => shiftCoordinates({ maxEnd: (data.current as Document[]).length, coordinates: prev, shift:  DOCUMENTS_RENDER_LIMIT  }));
+                setCoordinates((prev) => shiftCoordinates({ maxEnd: documentDataHandler.allData.length, coordinates: prev, shift:  DOCUMENTS_RENDER_LIMIT  }));
             }
         });
 
@@ -119,26 +138,28 @@ export const useData = () => {
             console.log("top trigger")
             if (!isRendering.current && isAllDataFetched.current) {
                 console.log("coordinates is changing")
-                setCoordinates((prev) => shiftCoordinates({  maxEnd:  (data.current as Document[]).length, coordinates: prev, shift:  -1 * DOCUMENTS_RENDER_LIMIT  }));
+                setCoordinates((prev) => shiftCoordinates({  maxEnd: documentDataHandler.allData.length, coordinates: prev, shift:  -1 * DOCUMENTS_RENDER_LIMIT  }));
             }
         });
 
         documentEventEmitter.on('documentsRerendered', () => {
             isRendering.current = false;
         })
-
+        return ()=>{
+            documentEventEmitter.unsubscribe("sortDocuments")
+            documentEventEmitter.unsubscribe("bottomRefTriggered")
+            documentEventEmitter.unsubscribe("topRefTriggered")
+            documentEventEmitter.unsubscribe("documentsRerendered")
+        }
     }, []);
 
     useEffect(() => {
-            
-            
-            if(data.current){
+            if(documentDataHandler.allData){
                 console.log("coordinates changed")
                 isRendering.current = true;
-                setDocuments(() =>(data.current as Document[]).slice(coordinates.start, coordinates.end))
+                setDocuments(() => documentDataHandler.allData.slice(coordinates.start, coordinates.end))
             }
-            
     }, [coordinates.end, coordinates.start]);
 
-    return {documents, documentsAmount: data.current ? (data.current as Document[]).length : null, sortDocuments, coordinates, isRendering}
+    return {documents, documentsAmount: documentDataHandler.allData ? documentDataHandler.allData.length : null, sortDocuments, coordinates, isRendering}
 }
