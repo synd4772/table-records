@@ -1,8 +1,8 @@
-import { CachedSortedData,CachedSortedDataKeys,  INIT_CACHED_SORTED_DATA, DocumentFieldName, Document} from "../[locale]/documents/documents.types";
-import { documentEventEmitter } from "../[locale]/documents/documentEventEmitter";
+import { CachedSortedData,CachedSortedDataKeys,  INIT_CACHED_SORTED_DATA, DefaultHeaders, Document} from "../[locale]/documents/documents.types";
+import { serverEventEmitter } from "../lib/serverEventEmitter";
 
 interface DataMessage {
-    key: CachedSortedDataKeys,
+    key: DefaultHeaders,
     ascendingIndexes: number[],
     descendingIndexes: number[]
 }
@@ -10,12 +10,16 @@ interface DataMessage {
 export class DataHandler{
     private _allData: Document[]
     private cachedSortedData: CachedSortedData
-    private isMessagePosted: boolean
+    isAllDataFetched: boolean
 
     constructor(){
         this.cachedSortedData = {...INIT_CACHED_SORTED_DATA}
         this._allData = []     
-        this.isMessagePosted = false
+        this.isAllDataFetched = false
+        
+        serverEventEmitter.on("isAllDataFetched", (args)=>{
+            this.isAllDataFetched = true
+        })
     }
 
     set allData(data: Document[]){
@@ -28,33 +32,41 @@ export class DataHandler{
 
     pushData(data: Document[]){
         this.allData.push(...data)
-        documentEventEmitter.emit("documentsAmountChanged", this._allData.length)
+        serverEventEmitter.emit("documentsAmountChanged", this._allData.length)
     }
 
-    createSortWorker(){
-        if(this.allData.length){
-            const worker = new Worker("/workers/SortWorker.js")
-            if(!this.isMessagePosted){
-                worker.postMessage({data:this.allData, cache:this.cachedSortedData})
-                console.time("sorting and indexing")
-                this.isMessagePosted = true
+    processData(){
+        if (this._allData.length){
+            for(const property in this.cachedSortedData){
+                const key = property as DefaultHeaders
+                const ascendingIndexes = this.sortByKey(key)
+                const descendingIndexes = ascendingIndexes.slice().reverse()
+                
+                this.cachedSortedData[key].ascending = ascendingIndexes
+                this.cachedSortedData[key].notAscending = descendingIndexes
             }
-            
-            worker.onmessage = (event: MessageEvent<DataMessage>) => {
-                this.cachedSortedData[event.data.key]["ascending"] = event.data.ascendingIndexes
-                this.cachedSortedData[event.data.key]["notAscending"] = event.data.descendingIndexes
-                documentEventEmitter.emit("fieldSortingAvailable", event.data.key)
-                if(this.isAllDataCached()){
-                    console.timeEnd("sorting and indexing")
-                    worker.terminate()
-                }
-            }
+            return true
         }
+        return false
+    }
+    
+    sortByKey(key: DefaultHeaders) {
+        const sortedData = this.allData.slice().sort((_a, _b) => {
+            const [a, b] = [_a, _b];
+            if (typeof a[key] === 'string' && typeof b[key] === 'string') {
+                return a[key].localeCompare(b[key])
+            }
+            //@ts-ignore
+            return a[key] - b[key]
+        });
+        const ascendingIndexes = sortedData.map((element) => element.id - 1);
+    
+        return ascendingIndexes 
     }
 
     isAllDataCached(){
         for(const prop in this.cachedSortedData){
-            const key = prop as CachedSortedDataKeys
+            const key = prop as DefaultHeaders
             if (!this.cachedSortedData[key]["ascending"].length && !this.cachedSortedData[key]["notAscending"].length){
                 return false
             }
@@ -72,38 +84,29 @@ export class DataHandler{
         const keyObject = isAscending ? "ascending" : "notAscending"
         const obj = this.cachedSortedData[key][keyObject]
         
-        const cachedDataIds = start === -1 && end == -1 ? obj : obj.slice(start,end)
+        const cachedDataIds = start === -1 && end === -1 ? obj : obj.slice(start,end)
+        console.time("backend sorting")
         const data: Document[] = []
         if(!this.isSortedIndexesCached({key, isAscending})) return []
         cachedDataIds.forEach((element)=>{
             data.push(this._allData[element])
         })
+        console.timeEnd("backend sorting")
+        
         return data;
     }
 
 }
 
 interface IsSortedDataCachedProps{
-    key: keyof Document,
+    key: DefaultHeaders,
     isAscending: boolean
 }
 
 interface GetCachedDataProps{
-    key: keyof Document,
+    key: DefaultHeaders,
     isAscending: boolean
     start?:number,
     end?:number
 
 }
-
-interface SortByKeyProps {
-  key: keyof Document, 
-  isAscending: boolean
-  start?:number,
-  end?:number
-}
-interface SetSortedDataInCache {
-    data: Document[], 
-    key: keyof Document, 
-    isAscending: boolean
-  }

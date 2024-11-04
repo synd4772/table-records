@@ -11,7 +11,6 @@ export class EventEmitter {
   }
 
   emit(eventName: string, args: unknown) {
-    console.log('emit called', eventName)
     if (eventName in this.listeners) {
       this.listeners[eventName].forEach((callBack) => {
         callBack(args);

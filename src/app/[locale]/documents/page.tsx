@@ -6,25 +6,12 @@ import { Link } from "@/i18n/routing";
 import { useTranslations } from "next-intl";
 import { useData } from "./useData";
 import { PageProps } from "../types";
-import { HeaderName } from "./documents.types";
+import { HeaderName, DefaultHeaders } from "./documents.types";
 import { TableHeader } from "./TableHeader";
 import { TableBody } from "./TableBody";
 import { Dispatch, MutableRefObject, SetStateAction, use, useEffect, useRef, useState } from "react";
 import { useIntersectionObservers } from "./useIntersectionObservers";
-import { documentEventEmitter } from "./documentEventEmitter";
-import { isHeritageClause } from "typescript";
-
-
-export const headers = [
-  HeaderName.index,
-  HeaderName.id,
-  HeaderName.state,
-  HeaderName.stateTime,
-  HeaderName.documentName,
-  HeaderName.documentNumber,
-  HeaderName.documentDate,
-  HeaderName.documentTotalAmount,
-] as HeaderName[];
+import { documentEventEmitter } from "../../lib/documentEventEmitter";
 
 interface TableStatProps{
     params: {
@@ -93,9 +80,9 @@ export default function Page({ params }: PageProps) {
             { isHeaderRendered && (
                 <table className="table">
                 <thead>
-                    <TableHeader headers={headers} />
+                    <TableHeader headers={DefaultHeaders} />
                 </thead>
-                <TableBody bottomObserver={bottomObserver} topObserver={topObserver} headers={headers} />
+                <TableBody bottomObserver={bottomObserver} topObserver={topObserver} headers={DefaultHeaders} />
                 </table>
             )
             }

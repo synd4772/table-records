@@ -3,7 +3,7 @@
 import { MutableRefObject, useEffect, useRef, useState } from "react";
 import { HeaderName, Document } from "./documents.types";
 import { TableRow } from "./TableRow";
-import { documentEventEmitter } from "./documentEventEmitter";
+import { documentEventEmitter } from "../../lib/documentEventEmitter";
 import { useData } from "./useData";
 
 interface TableBodyProps {
@@ -32,7 +32,7 @@ export const TableBody = ({ headers, bottomObserver, topObserver }: TableBodyPro
       //@ts-ignore
       const { documents: _documents, indexStart: _indexStart } = args;
       indexStart.current = _indexStart;
-      
+      console.log(_documents)
       setDocuments(() => [..._documents as Document[]]);
     });
     return () => {

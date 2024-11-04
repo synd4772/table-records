@@ -44,24 +44,39 @@ export interface Document {
   eligiblePercentage: number;
 }
 
-
 export type CachedSortedDataValue = {
     ascending: number[],
     notAscending: number[]
-}
-
-
-
-export type CachedSortedDataKeys = keyof typeof DocumentFieldName;
-
-export type CachedSortedData = {
-    [K in CachedSortedDataKeys]: CachedSortedDataValue;
 }
 
 export const INIT_CACHED_SORTED_DATA_VALUE: CachedSortedDataValue = {
     ascending: [],
     notAscending: []
 } 
+
+
+
+  
+
+export type CachedSortedDataKeys = keyof typeof DocumentFieldName;
+
+export type CachedSortedData = {
+    [K in DefaultHeaders]: typeof INIT_CACHED_SORTED_DATA_VALUE
+}
+
+export type DefaultHeaders = "id" | "state" | "stateTime" | "documentNumber" | "documentName" | "documentDate" | "documentTotalAmount"
+
+export const DefaultHeaders = [
+    HeaderName.index,
+    HeaderName.id,
+    HeaderName.state,
+    HeaderName.stateTime,
+    HeaderName.documentName,
+    HeaderName.documentNumber,
+    HeaderName.documentDate,
+    HeaderName.documentTotalAmount,
+  ] as DefaultHeaders[];
+
 export const INIT_CACHED_SORTED_DATA: CachedSortedData = {
     id: {
         ascending: [],
@@ -75,11 +90,11 @@ export const INIT_CACHED_SORTED_DATA: CachedSortedData = {
         ascending: [],
         notAscending: []
     },
-    documentNumber: {
+    documentName: {
         ascending: [],
         notAscending: []
     },
-    documentName: {
+    documentNumber: {
         ascending: [],
         notAscending: []
     },
@@ -90,17 +105,41 @@ export const INIT_CACHED_SORTED_DATA: CachedSortedData = {
     documentTotalAmount: {
         ascending: [],
         notAscending: []
-    },
-    eligibleAmount: {
-        ascending: [],
-        notAscending: []
-    },
-    version: {
-        ascending: [],
-        notAscending: []
-    },
-    eligiblePercentage: {
-        ascending: [],
-        notAscending: []
     }
-} as const
+}
+
+export type Requests = "dataAmount" | "allData" | "isAllDataProcessed" | "fetchData"
+
+export type DefaultRequest = {
+    request: Requests
+    body: object | null
+}
+
+export type SomeDataRequest = DefaultRequest & {body:null}
+
+
+export type DataRequest = DefaultRequest & {body:{
+    coordinates:{
+        start: number,
+        end: number
+    }
+    sorting: {
+        key: DefaultHeaders,
+        isAscending: boolean
+    }
+}}
+
+export type DataAmountAnswer = {
+    dataAmount: number
+}
+export type IsAllDataProcessedAnswer = {
+    isAllDataProcessed: boolean
+}
+
+export type DefaultMessage = {
+    message: unknown,
+    recievedData: unknown
+}
+
+
+export type clientEvents = "documentsAmountChanged" | "documentsUpdated" | "fieldSortingAvailable" | "fetchIsCompleted" | "anotherDataFetched" | "firstDataFetched" | "sortDocuments" | "bottomRefTriggered" | "topRefTriggered" | "documentsRerendered"

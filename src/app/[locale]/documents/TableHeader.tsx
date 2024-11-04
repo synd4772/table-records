@@ -1,32 +1,32 @@
 'use client';
 import { useTranslations } from "next-intl";
-import { DocumentFieldName, HeaderName } from "./documents.types";
+import { DocumentFieldName, HeaderName, DefaultHeaders } from "./documents.types";
 import { useEffect, useState } from "react";
-import { documentEventEmitter } from "./documentEventEmitter";
-import { documentDataHandler } from "./documentsDataHandler";
-import { headers } from "next/headers";
+import { documentEventEmitter } from "../../lib/documentEventEmitter";
 
 interface TableHeaderProps {
   headers: HeaderName[];
 }
-// type sortingAbility ={
-//  [key in keyof typeof HeaderName]: boolean;
-// }
 
-// const INIT_SORTING_ABILITITY = {
-//     index: false,
-//     id: false,
-//     state: false,
-//     stateTime: false,
-//     documentName: false,
-//     documentNumber: false,
-//     documentDate: false,
-//     documentTotalAmount: false,
-// } as sortingAbility
+type sortingAbility = {
+    [K in HeaderName]: boolean;
+}
+
+
+const INIT_SORTING_ABILITITY = {
+    index: false,
+    id: false,
+    state: false,
+    stateTime: false,
+    documentName: false,
+    documentNumber: false,
+    documentDate: false,
+    documentTotalAmount: false,
+} as sortingAbility
 
 export const TableHeader = ({ headers }: TableHeaderProps) => {
   const t = useTranslations('DocumentsPage');
-//   const [sortingAbility, setSortingAbility] = useState(INIT_SORTING_ABILITITY)
+  const [sortingAbility, setSortingAbility] = useState(INIT_SORTING_ABILITITY)
 
   const [sortedBy, setSortedBy] = useState<{header: HeaderName, isAscending: boolean}>({
     header: HeaderName.id,
@@ -36,17 +36,16 @@ export const TableHeader = ({ headers }: TableHeaderProps) => {
   useEffect(()=>{
     documentEventEmitter.on("fieldSortingAvailable", (args)=>{
         const header = args as HeaderName
-        // const newSortingAbilityObject = sortingAbility
-        // newSortingAbilityObject[header] = true
-        // setSortingAbility((prev)=>)
+        setSortingAbility((prev)=>({...prev, [header]: true}))
     })
     return ()=>{
         documentEventEmitter.unsubscribe("fieldSortingAvailable")
     }
   }, [])
 
+
   const handleSort = (header: HeaderName) => {
-    if(documentDataHandler.isAllDataCached()){
+
         if (!(header in DocumentFieldName)) {
             return;
           }
@@ -56,7 +55,7 @@ export const TableHeader = ({ headers }: TableHeaderProps) => {
             header,
             isAscending
           }));
-    }
+    
   };
 
   return (

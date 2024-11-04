@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react"
-import { documentEventEmitter } from "./documentEventEmitter";
+import { documentEventEmitter } from "../../lib/documentEventEmitter";
 
 export const useIntersectionObservers = (rootRef: HTMLDivElement | null ) => {
   const topObserver = useRef<IntersectionObserver|null>(null);
